@@ -1057,6 +1057,28 @@ async fn filter_payment_methods(
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
+            let allowed_payment_method_types = if let Some(payment_intent) = payment_intent {
+                payment_intent
+                    .metadata
+                    .as_ref()
+                    .and_then(|masked_metadata| {
+                        let metadata = masked_metadata.peek().clone();
+                        let parsed_metadata: Option<api_models::payments::Metadata> =
+                            match serde_json::from_value(metadata) {
+                                Ok(metadata) => Some(metadata),
+                                _ => None,
+                            };
+                        parsed_metadata.and_then(|pm| {
+                            logger::info!(
+                                "Only given PaymentMethodTypes will be allowed {:?}",
+                                pm.allowed_payment_method_types
+                            );
+                            pm.allowed_payment_method_types
+                        })
+                    })
+            } else {
+                None
+            };
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()
@@ -1116,6 +1138,11 @@ async fn filter_payment_methods(
                             .map(|value| value.foreign_into()),
                     );
 
+                    let filter6 = filter_pm_based_on_allowed_types(
+                        allowed_payment_method_types.as_ref(),
+                        &payment_method_object.payment_method_type,
+                    );
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -1124,7 +1151,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1357,6 +1384,13 @@ fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Optio
     //     (_, _) => true,
     // };
     min_check && max_check
+}
+
+fn filter_pm_based_on_allowed_types(
+    allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
+    payment_method_type: &api_enums::PaymentMethodType,
+) -> bool {
+    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
 }
 
 fn filter_recurring_based(
