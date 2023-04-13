@@ -216,6 +216,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
+                // pm_token: None,
+                allowed_payment_method_types: request.allowed_payment_method_types.as_ref().map_or(None, |x| { Some(serde_json::json!(x)) }),
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

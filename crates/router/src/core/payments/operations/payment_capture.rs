@@ -160,6 +160,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
+                // pm_token: None,
+                allowed_payment_method_types: None,
             },
             None,
         ))

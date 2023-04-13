@@ -271,6 +271,8 @@ async fn get_tracker_for_sync<
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,
+            // pm_token: None,
+            allowed_payment_method_types: None,
         },
         None,
     ))

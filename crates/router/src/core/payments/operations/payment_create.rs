@@ -214,6 +214,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
+                // pm_token: None,
+                allowed_payment_method_types: request.allowed_payment_method_types.as_ref().map_or(None, |x| { Some(serde_json::json!(x)) }),
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -488,7 +490,7 @@ impl PaymentCreate {
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
-        let metadata = request
+        let mut metadata = request
             .metadata
             .as_ref()
             .map(Encode::<api_models::payments::Metadata>::encode_to_value)

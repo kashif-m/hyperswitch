@@ -203,6 +203,9 @@ pub struct PaymentsRequest {
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Allowed Payment Method Types
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

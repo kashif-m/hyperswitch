@@ -544,6 +544,8 @@ where
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub creds_identifier: Option<String>,
+    // pub pm_token: Option<String>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default)]

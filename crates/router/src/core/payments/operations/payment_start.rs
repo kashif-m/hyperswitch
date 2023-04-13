@@ -145,6 +145,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier: None,
+                // pm_token: None,
+                allowed_payment_method_types: None,
             },
             Some(customer_details),
         ))

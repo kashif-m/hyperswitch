@@ -28,6 +28,13 @@ pub trait PaymentIntentInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
 
+    async fn find_payment_intent_by_client_secret_merchant_id(
+        &self,
+        client_secret: &str,
+        merchant_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
+
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
@@ -214,6 +221,35 @@ mod storage {
             }
         }
 
+        async fn find_payment_intent_by_client_secret_merchant_id(
+            &self,
+            client_secret: &str,
+            merchant_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<PaymentIntent, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                PaymentIntent::find_by_client_secret_merchant_id(&conn, client_secret, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+
+                enums::MerchantStorageScheme::RedisKv => {
+                    let key = format!("{merchant_id}_{client_secret}");
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
+                            .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                        database_call,
+                    )
+                    .await
+                }
+            }
+        }
+
         #[cfg(feature = "olap")]
         async fn filter_payment_intent_by_constraints(
             &self,
@@ -282,6 +318,19 @@ mod storage {
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        }
+
+        async fn find_payment_intent_by_client_secret_merchant_id(
+            &self,
+            client_secret: &str,
+            merchant_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<PaymentIntent, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            PaymentIntent::find_by_client_secret_merchant_id(&conn, client_secret, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -385,6 +434,25 @@ impl PaymentIntentInterface for MockDb {
             .iter()
             .find(|payment_intent| {
                 payment_intent.payment_id == payment_id && payment_intent.merchant_id == merchant_id
+            })
+            .cloned()
+            .unwrap())
+    }
+
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
+    async fn find_payment_intent_by_client_secret_merchant_id(
+        &self,
+        client_secret: &str,
+        merchant_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
+        let payment_intents = self.payment_intents.lock().await;
+
+        Ok(payment_intents
+            .iter()
+            .find(|payment_intent| {
+                payment_intent.client_secret.as_ref().map_or(false, |cs| { cs == client_secret && payment_intent.merchant_id == merchant_id })
             })
             .cloned()
             .unwrap())
