@@ -4,11 +4,64 @@ use actix_web::{
 };
 use router_env::{instrument, tracing, Flow};
 
+use crate::{
+    connection,
+    core::{
+        errors::{self, CustomResult, RouterResponse, RouterResult},
+        payment_methods::vault,
+    },
+    db::StorageInterface,
+    logger, pii,
+    routes::AppState,
+    scheduler::utils as pt_utils,
+    services,
+    types::{
+        self, api,
+        storage::{self, enums as storage_enums},
+    },
+    utils::{Encode, OptionExt, ValueExt},
+};
+
+/// Payouts - Create
+#[utoipa::path(
+    post,
+    path = "/payouts",
+    request_body=PayoutsRequest,
+    responses(
+        (status = 200, description = "Payout created", body = PayoutsResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Create a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
-// #[post("/create")]
-pub async fn payouts_create() -> impl Responder {
-    let _flow = Flow::PayoutsCreate;
-    http_response("create")
+// #[post("")]
+pub async fn payouts_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PayoutsRequest>,
+) -> impl Responder {
+    let flow = Flow::PayoutsCreate;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            authorize_verify_select(
+                payouts::PayoutCreate,
+                state,
+                merchant_account,
+                req,
+                api::AuthFlow::Merchant,
+            )
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]

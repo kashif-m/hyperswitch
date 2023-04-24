@@ -105,6 +105,8 @@ pub type RefreshTokenType =
 
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
@@ -404,6 +406,21 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
+}
+
+#[derive(Clone, Debug)]
+pub struct PayoutsData {
+    pub code: String,
+    pub message: String,
+    pub reason: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutsResponseData {
+    pub connector_refund_id: String,
+    pub refund_status: storage_enums::RefundStatus,
+    // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
 }
 
 impl ErrorResponse {
